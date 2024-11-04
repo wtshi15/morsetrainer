@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morse Trainer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .score-box {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .morse-display {
+            font-size: 4em;
+            margin: 20px;
+            padding: 20px;
+            background: #fff;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .letter-display {
+            font-size: 2em;
+            margin-top: 10px;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="score-box">
+        <p>Score: <span id="score">0</span></p>
+        <p>Errors: <span id="errors">0</span></p>
+        <p>Error Rate: <span id="errorRate">0%</span></p>
+        <p>Time Elapsed: <span id="timer">0</span> s</p>
+        <p>Avg. Time per Letter: <span id="avgTime">0.00</span> s</p>
+        <button onclick="resetGame()">Reset</button>
+    </div>
+    <div class="morse-display" id="morseCode">- . ... -</div>
+    <div class="letter-display" id="letterDisplay">Guess the letter</div>
+    <div class="instructions">
+        <p>Press the corresponding key on your keyboard for the Morse code above.</p>
+        <button onclick="playMorseSound()">Play Sound</button>
+    </div>
+    <script>
+        const morseLetters = {
+            'a': '.-',    'b': '-...',  'c': '-.-.', 
+            'd': '-..',   'e': '.',     'f': '..-.',
+            'g': '--.',   'h': '....',  'i': '..',
+            'j': '.---',  'k': '-.-',   'l': '.-..',
+            'm': '--',    'n': '-.',    'o': '---',
+            'p': '.--.',  'q': '--.-',  'r': '.-.',
+            's': '...',   't': '-',     'u': '..-',
+            'v': '...-',  'w': '.--',   'x': '-..-',
+            'y': '-.--',  'z': '--..'
+        };
+
+        let score = 0;
+        let errors = 0;
+        let startTime = Date.now();
+        let timerInterval;
+
+        const scoreDisplay = document.getElementById('score');
+        const errorsDisplay = document.getElementById('errors');
+        const errorRateDisplay = document.getElementById('errorRate');
+        const timerDisplay = document.getElementById('timer');
+        const avgTimeDisplay = document.getElementById('avgTime');
+        const morseDisplay = document.getElementById('morseCode');
+        const letterDisplay = document.getElementById('letterDisplay');
+
+        let currentLetter = getRandomLetter();
+
+        function getRandomLetter() {
+            const letters = Object.keys(morseLetters);
+            const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+            morseDisplay.textContent = morseLetters[randomLetter];
+            return randomLetter;
+        }
+
+        function playMorseSound() {
+            const morseCode = morseLetters[currentLetter];
+            let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let oscillator = audioCtx.createOscillator();
+            let dotDuration = 100; // 100ms for a dot
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+            oscillator.start();
+
+            let currentTime = audioCtx.currentTime;
+
+            morseCode.split('').forEach(symbol => {
+                if (symbol === '.') {
+                    oscillator.frequency.setValueAtTime(600, currentTime);
+                    currentTime += dotDuration / 1000;
+                } else if (symbol === '-') {
+                    oscillator.frequency.setValueAtTime(600, currentTime);
+                    currentTime += (3 * dotDuration) / 1000;
+                }
+                currentTime += dotDuration / 1000; // Space between symbols
+            });
+
+            oscillator.stop(currentTime);
+            oscillator.connect(audioCtx.destination);
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            timerDisplay.textContent = elapsed;
+            const avgTime = (elapsed / (score + errors)).toFixed(2);
+            avgTimeDisplay.textContent = score + errors > 0 ? avgTime : '0.00';
+        }
+
+        function resetGame() {
+            score = 0;
+            errors = 0;
+            startTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            scoreDisplay.textContent = score;
+            errorsDisplay.textContent = errors;
+            errorRateDisplay.textContent = '0%';
+            timerDisplay.textContent = '0';
+            avgTimeDisplay.textContent = '0.00';
+            currentLetter = getRandomLetter();
+            letterDisplay.textContent = 'Guess the letter';
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === currentLetter) {
+                score++;
+                currentLetter = getRandomLetter();
+                letterDisplay.textContent = 'Guess the letter';
+            } else {
+                errors++;
+                letterDisplay.textContent = `Wrong! The letter was "${currentLetter.toUpperCase()}"`;
+            }
+
+            const totalAttempts = score + errors;
+            const errorRate = totalAttempts ? ((errors / totalAttempts) * 100).toFixed(2) : 0;
+
+            scoreDisplay.textContent = score;
+            errorsDisplay.textContent = errors;
+            errorRateDisplay.textContent = `${errorRate}%`;
+        });
+
+        // Initialize game
+        resetGame();
+    </script>
+</body>
+</html>
